@@ -1,0 +1,933 @@
+openapi: "3.0.3"
+info:
+  title:
+    Fn::Sub: "${AWS::StackName}-lms-apis"
+  description:
+    Fn::Sub: "Backend APIs for ${AWS::StackName} Learning Management System"
+  version: "1.0"
+paths:
+  /auth/signup:
+    get:
+      summary: Redirect to GitHub OAuth
+      responses:
+        "200":
+          description: OAuth redirect URL retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedirectResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthStack.Outputs.AuthLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /auth/signup
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /auth/callback:
+    get:
+      summary: Handle GitHub OAuth Callback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OAuth token retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthStack.Outputs.AuthLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /auth/callback
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /courses:
+    get:
+      summary: List All Courses
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Courses retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoursesResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CoursesStack.Outputs.CoursesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    post:
+      summary: Create a Course
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseRequest"
+        required: true
+      responses:
+        "201":
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-request-validator: ValidateBody
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CoursesStack.Outputs.CoursesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /courses
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /courses/{id}:
+    get:
+      summary: Get a Course by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Course retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CoursesStack.Outputs.CoursesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /courses/{id}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /courses/{id}/enroll:
+    post:
+      summary: Enroll in a Course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Enrolled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrollResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CoursesStack.Outputs.CoursesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /courses/{id}/enroll
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /lessons/{courseId}:
+    get:
+      summary: Get Lessons for a Course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lessons retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonsResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LessonsStack.Outputs.LessonsLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /lessons/{courseId}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /lessons/{courseId}/complete/{lessonId}:
+    post:
+      summary: Mark a Lesson as Complete
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson marked complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompleteLessonResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LessonsStack.Outputs.LessonsLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /lessons/{courseId}/complete/{lessonId}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /quizzes/{courseId}:
+    get:
+      summary: Get Quizzes for a Course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quizzes retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizzesResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QuizzesStack.Outputs.QuizzesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /quizzes/{courseId}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /quizzes/{courseId}/quiz:
+    post:
+      summary: Create a Quiz
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuizRequest"
+        required: true
+      responses:
+        "201":
+          description: Quiz created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-request-validator: ValidateBody
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QuizzesStack.Outputs.QuizzesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /quizzes/{courseId}/quiz
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /quizzes/{courseId}/question:
+    post:
+      summary: Create a Question
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionRequest"
+        required: true
+      responses:
+        "201":
+          description: Question created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-request-validator: ValidateBody
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QuizzesStack.Outputs.QuizzesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /quizzes/{courseId}/question
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /quizzes/{courseId}/attempt/{quizId}:
+    post:
+      summary: Submit a Quiz Attempt
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: quizId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizAttemptRequest"
+        required: true
+      responses:
+        "200":
+          description: Quiz attempt submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizAttemptResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-request-validator: ValidateBody
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QuizzesStack.Outputs.QuizzesLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /quizzes/{courseId}/attempt/{quizId}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+  /progress/{courseId}:
+    get:
+      summary: Get User Progress for a Course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Progress retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProgressStack.Outputs.ProgressLambdaArn}/invocations"
+        credentials:
+          Fn::Sub: "${RestApiRole.Arn}"
+    options:
+      summary: CORS preflight for /progress/{courseId}
+      responses:
+        "200":
+          description: Successful CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+x-amazon-apigateway-request-validators:
+  ValidateBody:
+    validateRequestBody: true
+    validateRequestParameters: false
+components:
+  schemas:
+    RedirectResponse:
+      type: object
+      properties:
+        redirectUrl:
+          type: string
+      required:
+        - redirectUrl
+    AuthTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+        - token
+    CreateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        instructor:
+          type: string
+        price:
+          type: number
+      required:
+        - title
+        - instructor
+        - price
+    CourseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        instructor:
+          type: string
+        price:
+          type: number
+        created_at:
+          type: string
+    CoursesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseResponse"
+        nextCursor:
+          type: string
+          nullable: true
+    EnrollResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+    LessonsResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+          course_id:
+            type: string
+          title:
+            type: string
+          video_url:
+            type: string
+          resource_links:
+            type: array
+            items:
+              type: string
+          created_at:
+            type: string
+    CompleteLessonResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+    CreateQuizRequest:
+      type: object
+      properties:
+        course_id:
+          type: string
+      required:
+        - course_id
+    QuizResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        course_id:
+          type: string
+        created_at:
+          type: string
+    CreateQuestionRequest:
+      type: object
+      properties:
+        quiz_id:
+          type: string
+        text:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correct_answer:
+          type: string
+      required:
+        - quiz_id
+        - text
+        - options
+        - correct_answer
+    QuestionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        quiz_id:
+          type: string
+        text:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correct_answer:
+          type: string
+        created_at:
+          type: string
+    QuizzesResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+          course_id:
+            type: string
+          created_at:
+            type: string
+          questions:
+            type: array
+            items:
+              $ref: "#/components/schemas/QuestionResponse"
+    QuizAttemptRequest:
+      type: object
+      properties:
+        quiz_id:
+          type: string
+        answers:
+          type: array
+          items:
+            type: string
+      required:
+        - quiz_id
+        - answers
+    QuizAttemptResponse:
+      type: object
+      properties:
+        score:
+          type: number
+        attempt_num:
+          type: integer
+      required:
+        - score
+        - attempt_num
+    ProgressResponse:
+      type: object
+      properties:
+        completed_lessons:
+          type: array
+          items:
+            type: string
+        quiz_attempts:
+          type: array
+          items:
+            type: object
+            properties:
+              quiz_id:
+                type: string
+              attempt_num:
+                type: integer
+              score:
+                type: number
+        percent_complete:
+          type: number
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
