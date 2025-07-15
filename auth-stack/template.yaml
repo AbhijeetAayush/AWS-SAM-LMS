@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Auth Module for LMS Backend
+Parameters:
+  SupabaseUrl:
+    Type: String
+    Description: Supabase Project URL
+    NoEcho: true
+  SupabaseKey:
+    Type: String
+    Description: Supabase Anon Key
+    NoEcho: true
+  JwtSecret:
+    Type: String
+    Description: Supabase JWT Secret
+    NoEcho: true
+  GitHubClientId:
+    Type: String
+    Description: GitHub OAuth Client ID
+    NoEcho: true
+  GitHubClientSecret:
+    Type: String
+    Description: GitHub OAuth Client Secret
+    NoEcho: true
+  AllowedOrigin:
+    Type: String
+    Description: CORS allowed origin
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    Environment:
+      Variables:
+        SUPABASE_URL: !Ref SupabaseUrl
+        SUPABASE_KEY: !Ref SupabaseKey
+        JWT_SECRET: !Ref JwtSecret
+        GITHUB_CLIENT_ID: !Ref GitHubClientId
+        GITHUB_CLIENT_SECRET: !Ref GitHubClientSecret
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+Resources:
+  AuthLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handler.handler
+      CodeUri: ./
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: /lms-backend/*
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LmsApi
+            Path: /auth/{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: false
+        EntryPoints:
+          - src/handler.js
+Outputs:
+  AuthLambdaArn:
+    Description: ARN of the Auth Lambda Function
+    Value: !GetAtt AuthLambda.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AuthLambdaArn"
