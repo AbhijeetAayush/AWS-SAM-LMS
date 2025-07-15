@@ -1,57 +1,145 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  backend
-
-  Sample SAM Template for backend
-
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
-Globals:
-  Function:
-    Timeout: 3
-
-    # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
-    LoggingConfig:
-      LogFormat: JSON
+Description: Learning Management System Backend
+Parameters:
+  SupabaseUrl:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/SUPABASE_URL
+    Description: Supabase Project URL
+    NoEcho: true
+  SupabaseKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/SUPABASE_KEY
+    Description: Supabase Anon Key
+    NoEcho: true
+  JwtSecret:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/JWT_SECRET
+    Description: Supabase JWT Secret
+    NoEcho: true
+  UpstashRedisUrl:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/UPSTASH_REDIS_URL
+    Description: Upstash Redis URL
+    NoEcho: true
+  GitHubClientId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/GITHUB_CLIENT_ID
+    Description: GitHub OAuth Client ID
+    NoEcho: true
+  GitHubClientSecret:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /lms-backend/GITHUB_CLIENT_SECRET
+    Description: GitHub OAuth Client Secret
+    NoEcho: true
+  AllowedOrigin:
+    Type: String
+    Description: CORS allowed origin
+    Default: "*"
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  RestApiRole:
+    Type: AWS::IAM::Role
     Properties:
-      CodeUri: hello-world/
-      Handler: app.lambdaHandler
-      Runtime: nodejs22.x
-      Architectures:
-      - x86_64
-      Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: get
-
-  ApplicationResourceGroup:
-    Type: AWS::ResourceGroups::Group
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeLambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AuthStack.Outputs.AuthLambdaArn
+                  - !GetAtt CoursesStack.Outputs.CoursesLambdaArn
+                  - !GetAtt LessonsStack.Outputs.LessonsLambdaArn
+                  - !GetAtt QuizzesStack.Outputs.QuizzesLambdaArn
+                  - !GetAtt ProgressStack.Outputs.ProgressLambdaArn
+  LmsApi:
+    Type: AWS::Serverless::Api
     Properties:
-      Name:
-        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
-      ResourceQuery:
-        Type: CLOUDFORMATION_STACK_1_0
-  ApplicationInsightsMonitoring:
-    Type: AWS::ApplicationInsights::Application
+      StageName: Prod
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./api/backend-api.yaml
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: !Ref AllowedOrigin
+  AuthStack:
+    Type: AWS::Serverless::Application
     Properties:
-      ResourceGroupName:
-        Ref: ApplicationResourceGroup
-      AutoConfigurationEnabled: 'true'
+      Location: ./auth-stack/template.yaml
+      Parameters:
+        SupabaseUrl: !Ref SupabaseUrl
+        SupabaseKey: !Ref SupabaseKey
+        JwtSecret: !Ref JwtSecret
+        GitHubClientId: !Ref GitHubClientId
+        GitHubClientSecret: !Ref GitHubClientSecret
+        AllowedOrigin: !Ref AllowedOrigin
+  CoursesStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./courses-stack/template.yaml
+      Parameters:
+        SupabaseUrl: !Ref SupabaseUrl
+        SupabaseKey: !Ref SupabaseKey
+        JwtSecret: !Ref JwtSecret
+        UpstashRedisUrl: !Ref UpstashRedisUrl
+        AllowedOrigin: !Ref AllowedOrigin
+  LessonsStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./lessons-stack/template.yaml
+      Parameters:
+        SupabaseUrl: !Ref SupabaseUrl
+        SupabaseKey: !Ref SupabaseKey
+        JwtSecret: !Ref JwtSecret
+        UpstashRedisUrl: !Ref UpstashRedisUrl
+        AllowedOrigin: !Ref AllowedOrigin
+  QuizzesStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./quizzes-stack/template.yaml
+      Parameters:
+        SupabaseUrl: !Ref SupabaseUrl
+        SupabaseKey: !Ref SupabaseKey
+        JwtSecret: !Ref JwtSecret
+        UpstashRedisUrl: !Ref UpstashRedisUrl
+        AllowedOrigin: !Ref AllowedOrigin
+  ProgressStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./progress-stack/template.yaml
+      Parameters:
+        SupabaseUrl: !Ref SupabaseUrl
+        SupabaseKey: !Ref SupabaseKey
+        JwtSecret: !Ref JwtSecret
+        UpstashRedisUrl: !Ref UpstashRedisUrl
+        AllowedOrigin: !Ref AllowedOrigin
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: API Gateway endpoint URL for Prod stage for Hello World function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: Hello World Lambda Function ARN
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  LmsApi:
+    Description: URL of the API Gateway
+    Value: !Sub "https://${LmsApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  AuthLambdaArn:
+    Description: ARN of the Auth Lambda Function
+    Value: !GetAtt AuthStack.Outputs.AuthLambdaArn
+  CoursesLambdaArn:
+    Description: ARN of the Courses Lambda Function
+    Value: !GetAtt CoursesStack.Outputs.CoursesLambdaArn
+  LessonsLambdaArn:
+    Description: ARN of the Lessons Lambda Function
+    Value: !GetAtt LessonsStack.Outputs.LessonsLambdaArn
+  QuizzesLambdaArn:
+    Description: ARN of the Quizzes Lambda Function
+    Value: !GetAtt QuizzesStack.Outputs.QuizzesLambdaArn
+  ProgressLambdaArn:
+    Description: ARN of the Progress Lambda Function
+    Value: !GetAtt ProgressStack.Outputs.ProgressLambdaArn
